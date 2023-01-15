@@ -1,18 +1,24 @@
 use std::{fs, error::Error};
 
-pub struct Config<'a> {
-    pub query: &'a str,
-    pub file_path: &'a str,
+pub struct Config {
+    pub query: String,
+    pub file_path: String,
     pub ignore_case: bool
 }
 
-impl<'a> Config<'a> {
-    pub fn new(args: &'a [String], ignore_case: bool) -> Config<'a> {
-        Config {
-            query: &args[1],
-            file_path: &args[2],
-            ignore_case
-        }
+impl Config {
+    pub fn build<T: Iterator<Item=String>>(mut args: T, ignore_case: bool) -> Option<Config> {
+        let _ = args.next()?;
+        let query = args.next()?;
+        let file_path = args.next()?;
+
+        Some(
+            Config {
+                query,
+                file_path,
+                ignore_case
+            }
+        )
     }
 }
 
@@ -20,9 +26,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(config.file_path)?;
 
     let search_res = if config.ignore_case {
-        search_insensitive(config.query, &contents)
+        search_insensitive(&config.query, &contents)
     } else {
-        search(config.query, &contents)
+        search(&config.query, &contents)
     };
 
     for line in search_res {
@@ -34,32 +40,21 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
 
 pub fn search<'a>(query: &'a str, contents: &'a str) -> Vec<&'a str> {
-    let mut vec = vec![];
-
-    for line in contents.lines() {
-        let m_line = line.trim();
-
-        if m_line.contains(query) {
-            vec.push(m_line);
-        }
-    }
-
-    vec
+    contents
+    .lines()
+    .map(|line| line.trim())
+    .filter(|line| line.contains(query))
+    .collect()
 }
 
 pub fn search_insensitive<'a>(query: &'a str, contents: &'a str) -> Vec<&'a str> {
-    let mut vec = vec![];
-    let query = query.to_lowercase();
+    let query = &query.to_lowercase();
 
-    for line in contents.lines() {
-        let m_line = line.trim();
-
-        if m_line.to_lowercase().contains(&query) {
-            vec.push(m_line);
-        }
-    }
-
-    vec
+    contents
+    .lines()
+    .map(|line| line.trim())
+    .filter(|line| line.to_lowercase().contains(query))
+    .collect()
 }
 
 #[cfg(test)]
